@@ -631,9 +631,9 @@ export default function ProvablyFairGame() {
   }
 
   return (
-    <div className="min-h-screen bg-black text-white flex flex-col items-center p-2 w-full mx-auto">
+    <div className="h-screen bg-black text-white flex flex-col items-center p-1 w-full mx-auto overflow-hidden">
       {/* Header - Title centered, buttons below */}
-      <div className="w-full pt-2 pb-4">
+      <div className="w-full pt-1 pb-2 flex-shrink-0">
         {/* Title Row - Compact */}
         <div className="flex items-center justify-between mb-1">
           <div className="w-8"></div>
@@ -750,7 +750,7 @@ export default function ProvablyFairGame() {
 
       {/* Stats - 5 Cards in One Row (only when playing) */}
       {viewMode === 'front' && (state.phase === 'LOADED' || state.phase === 'PLAYING') && (
-        <div className="w-full max-w-md mx-auto mb-4">
+        <div className="w-full max-w-md mx-auto mb-2 flex-shrink-0">
           <div className="grid grid-cols-5 gap-2">
             <div className="bg-gray-900/50 backdrop-blur-sm border border-gray-800 rounded-lg p-2 text-center">
               <p className="text-xs text-gray-500">Run Streak</p>
@@ -794,7 +794,7 @@ export default function ProvablyFairGame() {
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="my-2 flex flex-col items-center justify-center flex-1"
+          className="my-1 flex flex-col items-center justify-center flex-1 min-h-0"
         >
           <p className="text-[11px] text-gray-500 text-center mb-2">Click bullet to load</p>
           <motion.button
@@ -831,7 +831,7 @@ export default function ProvablyFairGame() {
           initial={{ opacity: 0, scale: 0.8 }}
           animate={{ opacity: 1, scale: 1 }}
           exit={{ opacity: 0 }}
-          className="my-2 flex flex-col items-center justify-center flex-1"
+          className="my-1 flex flex-col items-center justify-center flex-1 min-h-0"
         >
           {viewMode === 'loading' && !isLoadingBullet && (
             <motion.p 
@@ -924,7 +924,7 @@ export default function ProvablyFairGame() {
         <motion.div
           initial={{ opacity: 1 }}
           animate={{ opacity: 1 }}
-          className="my-2 flex flex-col items-center justify-center flex-1"
+          className="my-1 flex flex-col items-center justify-center flex-1 min-h-0"
         >
           <p className="text-green-400 text-center mb-2 font-bold text-sm">Closing...</p>
           
@@ -957,7 +957,7 @@ export default function ProvablyFairGame() {
           transition={{ duration: 1, ease: "easeOut" }}
           className="flex flex-col items-center justify-start w-full max-w-md"
         >
-          <p className="text-green-400 text-center mb-4 mt-0 font-bold">Ready to play!</p>
+          <p className="text-green-400 text-center mb-2 mt-0 font-bold text-sm">Ready to play!</p>
           
           {/* FRONT VIEW: Barrel aligned with TOP chamber hole */}
           <div className="relative w-full flex flex-col items-center justify-center">
@@ -1042,8 +1042,8 @@ export default function ProvablyFairGame() {
             </div>
             
             {/* SIDE VIEW TRIGGER (below) */}
-            <div className="mt-8 mb-4 flex flex-col items-center">
-              <p className="text-sm text-gray-500 text-center mb-4">Chamber {state.chamberIndex + 1} of 8</p>
+            <div className="mt-4 mb-2 flex flex-col items-center">
+              <p className="text-xs text-gray-500 text-center mb-2">Chamber {state.chamberIndex + 1} of 8</p>
               
               {/* Trigger with custom images */}
               <motion.button
@@ -1082,7 +1082,7 @@ export default function ProvablyFairGame() {
       )}
 
       {/* Main Controls */}
-      <div className="w-full max-w-md mx-auto space-y-4 flex flex-col justify-end pb-20">
+      <div className="w-full max-w-md mx-auto space-y-2 flex flex-col justify-end pb-2 flex-1 overflow-y-auto">
         {/* Stats and Status */}
         {viewMode === 'front' && (state.phase === 'LOADED' || state.phase === 'PLAYING') && (
           <motion.div
@@ -1098,13 +1098,13 @@ export default function ProvablyFairGame() {
             )}
             
             {/* Current run streak */}
-            <div className="flex items-center justify-center gap-4 text-sm text-gray-500">
+            <div className="flex items-center justify-center gap-2 text-xs text-gray-500">
               <span>Safe Pulls: <span className="text-green-400 font-bold">{currentRunSafePulls}</span></span>
               <span>Max Streak: <span className="text-yellow-400 font-bold">{playerStats.maxStreak}</span></span>
               <span>Score: <span className="text-blue-400 font-bold">{calculateScore(playerStats.maxStreak, playerStats.totalPulls, playerStats.totalDeaths).toFixed(2)}</span></span>
             </div>
             
-            <p className="text-base text-gray-400">👆 Tap trigger to fire</p>
+            <p className="text-xs text-gray-400">👆 Tap trigger to fire</p>
           </motion.div>
         )}
 
