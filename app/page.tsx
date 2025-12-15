@@ -62,25 +62,25 @@ export default function Home() {
           
           // OnchainKit with miniKit.enabled should auto-connect, but if not, try manual connection
           if (!isConnected && connectors.length > 0) {
-            // Wait a bit for OnchainKit to initialize, then try to connect
-            setTimeout(() => {
-              if (!isConnected) {
-                // Try Coinbase Wallet SDK connector first (works in miniapp)
-                const cbConnector = connectors.find(c => c.id === 'coinbaseWalletSDK' || c.id === 'coinbaseWallet');
-                if (cbConnector) {
-                  console.log('Attempting to connect with Coinbase Wallet...');
-                  connect({ connector: cbConnector }).catch(err => {
+              // Wait a bit for OnchainKit to initialize, then try to connect
+              setTimeout(() => {
+                if (!isConnected) {
+                  try {
+                    // Try Coinbase Wallet SDK connector first (works in miniapp)
+                    const cbConnector = connectors.find(c => c.id === 'coinbaseWalletSDK' || c.id === 'coinbaseWallet');
+                    if (cbConnector) {
+                      console.log('Attempting to connect with Coinbase Wallet...');
+                      connect({ connector: cbConnector });
+                    } else if (connectors[0]) {
+                      // Fallback to first available connector
+                      console.log('Attempting to connect with first available connector...');
+                      connect({ connector: connectors[0] });
+                    }
+                  } catch (err) {
                     console.log('Connection attempt failed:', err);
-                  });
-                } else if (connectors[0]) {
-                  // Fallback to first available connector
-                  console.log('Attempting to connect with first available connector...');
-                  connect({ connector: connectors[0] }).catch(err => {
-                    console.log('Connection attempt failed:', err);
-                  });
+                  }
                 }
-              }
-            }, 1000);
+              }, 1000);
           }
         }
       })
