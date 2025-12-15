@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Generate Icon</title>
+</head>
+<body style="margin: 0; padding: 0; background: #000;">
+  <canvas id="iconCanvas" width="1024" height="1024" style="display: block;"></canvas>
+  <script>
+    const canvas = document.getElementById('iconCanvas');
+    const ctx = canvas.getContext('2d');
+    
+    // Fill black background
+    ctx.fillStyle = '#000000';
+    ctx.fillRect(0, 0, 1024, 1024);
+    
+    // Draw revolver emoji
+    ctx.font = '600px Arial';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = '#ffffff';
+    ctx.fillText('🔫', 512, 512);
+    
+    // Download as PNG
+    canvas.toBlob(function(blob) {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'icon.png';
+      a.click();
+      URL.revokeObjectURL(url);
+    });
+  </script>
+</body>
+</html>
+
