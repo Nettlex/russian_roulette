@@ -52,19 +52,6 @@ export default function ProvablyFairGame() {
     query: { enabled: !!depositHash },
   });
   
-  // Handle deposit success
-  useEffect(() => {
-    if (isDepositSuccess && depositHash) {
-      // Transaction confirmed, update balance
-      const depositAmount = parseFloat(localStorage.getItem(`lastDepositAmount_${address}`) || '0');
-      if (depositAmount > 0) {
-        saveBalance(userBalance + depositAmount);
-        localStorage.removeItem(`lastDepositAmount_${address}`);
-        setShowDepositModal(false);
-        alert(`✅ Deposited ${depositAmount} USDC successfully!`);
-      }
-    }
-  }, [isDepositSuccess, depositHash, address, userBalance]);
   const [state, dispatch] = useReducer(gameReducer, initialState);
   const [showVerification, setShowVerification] = useState(false);
   const [isAnimating, setIsAnimating] = useState(false);
@@ -91,6 +78,21 @@ export default function ProvablyFairGame() {
   const [showDepositModal, setShowDepositModal] = useState(false);
   const [showWithdrawModal, setShowWithdrawModal] = useState(false);
   const [showPendingPrizesModal, setShowPendingPrizesModal] = useState(false);
+  
+  // Handle deposit success (after userBalance is declared)
+  useEffect(() => {
+    if (isDepositSuccess && depositHash) {
+      // Transaction confirmed, update balance
+      const depositAmount = parseFloat(localStorage.getItem(`lastDepositAmount_${address}`) || '0');
+      if (depositAmount > 0) {
+        setUserBalance(userBalance + depositAmount);
+        localStorage.setItem(`balance_${address}`, (userBalance + depositAmount).toString());
+        localStorage.removeItem(`lastDepositAmount_${address}`);
+        setShowDepositModal(false);
+        alert(`✅ Deposited ${depositAmount} USDC successfully!`);
+      }
+    }
+  }, [isDepositSuccess, depositHash, address, userBalance]);
   
   // Handle payment success
   useEffect(() => {
