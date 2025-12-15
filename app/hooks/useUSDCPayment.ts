@@ -1,7 +1,8 @@
 "use client";
-import { useWriteContract, useWaitForTransactionReceipt, useReadContract } from 'wagmi';
-import { parseUnits } from 'viem';
+import { useSendCalls, useWaitForTransactionReceipt, useReadContract } from 'wagmi';
+import { parseUnits, encodeFunctionData } from 'viem';
 import { base, baseSepolia } from 'wagmi/chains';
+import { Attribution } from "ox/erc8021";
 
 // USDC contract addresses
 // Base Mainnet USDC: 0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913
@@ -55,7 +56,7 @@ const USDC_ABI = [
 ] as const;
 
 export function useUSDCPayment(userAddress?: string) {
-  const { writeContract, data: hash, error, isPending } = useWriteContract();
+  const { sendCalls, data: hash, error, isPending } = useSendCalls();
   
   const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({
     hash,
@@ -89,12 +90,24 @@ export function useUSDCPayment(userAddress?: string) {
       
       console.log('Sending', amount, 'USDC to', PRIZE_POOL_WALLET);
       
-      // Send USDC to prize pool wallet
-      writeContract({
-        address: USDC_ADDRESS as `0x${string}`,
+      // Encode the transfer function call
+      const data = encodeFunctionData({
         abi: USDC_ABI,
         functionName: 'transfer',
         args: [PRIZE_POOL_WALLET as `0x${string}`, amountInUnits],
+      });
+      
+      // Send USDC to prize pool wallet with builder code attribution
+      sendCalls({
+        calls: [
+          {
+            to: USDC_ADDRESS as `0x${string}`,
+            data: data,
+          },
+        ],
+        capabilities: {
+          dataSuffix: Attribution.toDataSuffix({ codes: ["bc_t0xxtf9a"] })
+        }
       });
     } catch (err) {
       console.error('Payment error:', err);

@@ -118,7 +118,7 @@ export function calculatePrizeDistribution(
   // 1st place: 40%
   // 2nd place: 25%
   // 3rd place: 15%
-  // Remaining 20% split among all other participants
+  // Remaining 20%: 10% to people after 3rd, 10% kept by house (80% stays in pool)
   
   if (sorted.length === 1) {
     distribution.set(sorted[0].address, prizePool);
@@ -134,12 +134,15 @@ export function calculatePrizeDistribution(
     distribution.set(sorted[1].address, prizePool * 0.25);
     distribution.set(sorted[2].address, prizePool * 0.15);
     
+    // Remaining 20%: 10% to people after 3rd, 10% kept by house
     const remaining = prizePool * 0.2;
-    const perParticipant = remaining / (sorted.length - 3);
+    const forParticipants = remaining * 0.5; // 10% of total prize pool
+    const perParticipant = forParticipants / (sorted.length - 3);
     
     for (let i = 3; i < sorted.length; i++) {
       distribution.set(sorted[i].address, perParticipant);
     }
+    // 10% is kept by house (not distributed)
   }
   
   return distribution;

@@ -1,5 +1,5 @@
 "use client";
-import { useReducer, useEffect, useState } from 'react';
+import { useReducer, useEffect, useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAccount } from 'wagmi';
 import {
@@ -32,6 +32,8 @@ export default function ProvablyFairGame() {
   const [isAnimating, setIsAnimating] = useState(false);
   const [triggerCooldown, setTriggerCooldown] = useState(false); // Cooldown to prevent spam
   const [showDeathVideo, setShowDeathVideo] = useState(false);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const hasPlayedVideo = useRef(false);
   const [hasCompletedFirstRound, setHasCompletedFirstRound] = useState(false);
   const [showPaymentChoice, setShowPaymentChoice] = useState(false);
   const [isFreeModePlayer, setIsFreeModePlayer] = useState(true);
@@ -198,6 +200,7 @@ export default function ProvablyFairGame() {
     // Reset run state
     setCurrentRunSafePulls(0);
     setRunLockedIn(false);
+    hasPlayedVideo.current = false; // Reset video flag on new round
     setShowDecisionUI(false);
     
     // STEP 0: Start loading sequence - BACK VIEW (cylinder open left)
@@ -443,8 +446,11 @@ export default function ProvablyFairGame() {
     if (isHit) {
       playSound('bang');
       console.log('💀 BANG!');
-      // Show death video IMMEDIATELY
-      setShowDeathVideo(true);
+      // Show death video IMMEDIATELY - only if not already shown
+      if (!hasPlayedVideo.current) {
+        hasPlayedVideo.current = true;
+        setShowDeathVideo(true);
+      }
     } else {
       playSound('click');
       console.log('✓ CLICK');
@@ -483,6 +489,8 @@ export default function ProvablyFairGame() {
         // Reset run state
         setCurrentRunSafePulls(0);
         setRunLockedIn(false);
+        // Reset video flag when round ends
+        hasPlayedVideo.current = false;
         
         // After first round death, show payment choice
         if (!hasCompletedFirstRound) {
@@ -537,6 +545,7 @@ export default function ProvablyFairGame() {
     // End run - go back to ready state
     setCurrentRunSafePulls(0);
     setRunLockedIn(false);
+    hasPlayedVideo.current = false; // Reset video flag on new round
     setViewMode('ready');
   };
   
@@ -963,7 +972,7 @@ export default function ProvablyFairGame() {
           <div className="relative w-full flex flex-col items-center justify-center">
             
             {/* Barrel + Chamber Container */}
-            <div className="relative w-56 h-56 flex items-center justify-center">
+            <div className="relative w-48 h-48 flex items-center justify-center">
               
               {/* LAYER 1: Rotating Chamber (BEHIND barrel) */}
               <motion.div 
@@ -978,7 +987,7 @@ export default function ProvablyFairGame() {
                   damping: 30
                 }}
               >
-                <div className="relative w-60 h-60">
+                <div className="relative w-52 h-52">
                   {/* Cylinder body */}
                   <div className="absolute inset-0 bg-gradient-to-br from-gray-600 via-gray-700 to-gray-800 rounded-full border-4 border-gray-700 shadow-2xl" />
                   
@@ -1042,8 +1051,8 @@ export default function ProvablyFairGame() {
             </div>
             
             {/* SIDE VIEW TRIGGER (below) */}
-            <div className="mt-4 mb-2 flex flex-col items-center">
-              <p className="text-xs text-gray-500 text-center mb-2">Chamber {state.chamberIndex + 1} of 8</p>
+            <div className="mt-2 mb-1 flex flex-col items-center">
+              <p className="text-[10px] text-gray-500 text-center mb-1">Chamber {state.chamberIndex + 1} of 8</p>
               
               {/* Trigger with custom images */}
               <motion.button
@@ -1059,7 +1068,7 @@ export default function ProvablyFairGame() {
                   }
                 }}
                 disabled={isAnimating || triggerCooldown}
-                className="flex flex-col items-center gap-3 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex flex-col items-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                 style={{ touchAction: 'manipulation' }}
                 whileHover={!isAnimating && !triggerCooldown ? { scale: 1.05 } : {}}
               >
@@ -1070,11 +1079,11 @@ export default function ProvablyFairGame() {
                   <img 
                     src={isAnimating ? "/images/trigger_pulled.png" : "/images/trigger.png"}
                     alt="Trigger"
-                    className="w-24 h-24 object-contain drop-shadow-2xl"
+                    className="w-16 h-16 object-contain drop-shadow-2xl"
                   />
                 </motion.div>
                 
-                <p className="text-sm text-gray-400 text-center">👆 Pull to fire</p>
+                <p className="text-[10px] text-gray-400 text-center">👆 Pull to fire</p>
               </motion.button>
             </div>
           </div>
@@ -1399,16 +1408,27 @@ export default function ProvablyFairGame() {
             onClick={() => setShowDeathVideo(false)}
           >
             <video
+              ref={videoRef}
               autoPlay
               muted={false}
               playsInline
+              preload="auto"
               className="w-full h-full object-cover"
+              onLoadedData={() => {
+                // Ensure video plays from start when loaded
+                if (videoRef.current) {
+                  videoRef.current.currentTime = 0;
+                  videoRef.current.play().catch(console.error);
+                }
+              }}
               onEnded={() => {
                 // Close immediately when video ends (no delay)
+                hasPlayedVideo.current = false;
                 setShowDeathVideo(false);
               }}
               onError={(e) => {
                 // Silently handle video load errors - just close the overlay
+                hasPlayedVideo.current = false;
                 setShowDeathVideo(false);
               }}
             >
