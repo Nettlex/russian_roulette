@@ -290,9 +290,34 @@ export default function ProvablyFairGame() {
   }, [address, isConnected]);
 
   // Save player stats - separate for free and paid
-  const savePlayerStats = (stats: typeof playerStats) => {
+  const savePlayerStats = async (stats: typeof playerStats) => {
     setPlayerStats(stats);
     localStorage.setItem(getStatsKey(), JSON.stringify(stats));
+    
+    // Sync to API for global leaderboard (only if wallet is connected)
+    if (address && isConnected) {
+      try {
+        await fetch('/api/game', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            action: 'updateStats',
+            address,
+            stats: {
+              triggerPulls: stats.totalPulls,
+              deaths: stats.totalDeaths,
+              maxStreak: stats.maxStreak,
+              isPaid: !isFreeModePlayer,
+            },
+          }),
+        });
+      } catch (error) {
+        console.error('Error syncing stats to API:', error);
+        // Don't block the UI if API sync fails
+      }
+    }
   };
 
   // Calculate leaderboard score

@@ -8,36 +8,67 @@ interface LeaderboardEntry {
   maxStreak: number;
   totalPulls: number;
   totalDeaths: number;
-  score: number;
+  triggerPulls?: number;
+  deaths?: number;
+  score?: number;
+  rank?: number;
 }
 
 export default function Leaderboard({ mode: initialMode }: { mode: 'free' | 'paid' }) {
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [timeFrame, setTimeFrame] = useState<'all' | 'week' | 'day'>('all');
   const [currentMode, setCurrentMode] = useState<'free' | 'paid'>(initialMode);
+  const [loading, setLoading] = useState(true);
+  const [prizePool, setPrizePool] = useState(0);
 
   useEffect(() => {
-    // Load leaderboard data from localStorage - separate for free and paid
-    const prefix = currentMode === 'free' ? 'stats_free_' : 'stats_paid_';
-    const keys = Object.keys(localStorage).filter(k => k.startsWith(prefix));
-    const entries: LeaderboardEntry[] = keys.map(key => {
-      const address = key.replace(prefix, '');
-      const stats = JSON.parse(localStorage.getItem(key) || '{}');
-      const riskMultiplier = 1 + (stats.totalDeaths / Math.max(1, stats.totalPulls));
-      const score = stats.maxStreak * riskMultiplier;
-      
-      return {
-        address,
-        maxStreak: stats.maxStreak || 0,
-        totalPulls: stats.totalPulls || 0,
-        totalDeaths: stats.totalDeaths || 0,
-        score: score || 0,
-      };
-    });
+    // Fetch leaderboard from API (global leaderboard)
+    const fetchLeaderboard = async () => {
+      setLoading(true);
+      try {
+        const response = await fetch(`/api/game?action=leaderboard&mode=${currentMode}`);
+        const data = await response.json();
+        
+        if (currentMode === 'paid' && data.prizePool) {
+          setPrizePool(data.prizePool.totalAmount || 0);
+        }
+        
+        // Transform API data to match component format
+        const entries: LeaderboardEntry[] = (data.leaderboard || []).map((entry: any) => {
+          const pulls = entry.triggerPulls || entry.totalPulls || 0;
+          const deaths = entry.deaths || entry.totalDeaths || 0;
+          const maxStreak = entry.maxStreak || 0;
+          const riskMultiplier = 1 + (deaths / Math.max(1, pulls));
+          const score = maxStreak * riskMultiplier;
+          
+          return {
+            address: entry.address,
+            maxStreak,
+            totalPulls: pulls,
+            totalDeaths: deaths,
+            triggerPulls: pulls,
+            deaths,
+            score,
+            rank: entry.rank,
+          };
+        });
 
-    // Sort by score descending
-    entries.sort((a, b) => b.score - a.score);
-    setLeaderboard(entries.slice(0, 50)); // Top 50
+        // Sort by score descending (if not already sorted by API)
+        entries.sort((a, b) => (b.score || 0) - (a.score || 0));
+        setLeaderboard(entries);
+      } catch (error) {
+        console.error('Error fetching leaderboard:', error);
+        setLeaderboard([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchLeaderboard();
+    
+    // Refresh every 10 seconds
+    const interval = setInterval(fetchLeaderboard, 10000);
+    return () => clearInterval(interval);
   }, [currentMode, timeFrame]);
 
   return (
@@ -94,7 +125,12 @@ export default function Leaderboard({ mode: initialMode }: { mode: 'free' | 'pai
 
       {/* Leaderboard List */}
       <div className="space-y-2">
-        {leaderboard.length === 0 ? (
+        {loading ? (
+          <div className="text-center py-12 text-gray-500">
+            <p className="text-4xl mb-4 animate-pulse">⏳</p>
+            <p>Loading leaderboard...</p>
+          </div>
+        ) : leaderboard.length === 0 ? (
           <div className="text-center py-12 text-gray-500">
             <p className="text-4xl mb-4">👻</p>
             <p>No players yet. Be the first!</p>
@@ -159,7 +195,7 @@ export default function Leaderboard({ mode: initialMode }: { mode: 'free' | 'pai
             💰 Weekly Prize Pool
           </h3>
           <p className="text-3xl font-bold text-center text-white mb-2">
-            {leaderboard.length} USDC
+            {prizePool.toFixed(2)} USDC
           </p>
           <p className="text-xs text-gray-400 text-center">
             Distributed every Sunday at midnight

@@ -11,6 +11,7 @@ interface LeaderboardEntry {
   maxStreak: number;
   rank?: number;
   isPaid?: boolean;
+  lastPlayed?: number;
 }
 
 const leaderboard: {
@@ -98,16 +99,18 @@ export async function POST(request: NextRequest) {
         address,
         triggerPulls: 0,
         deaths: 0,
+        maxStreak: 0,
         lastPlayed: Date.now(),
         isPaid: false,
       };
 
       const updatedStats = {
         ...existingStats,
-        triggerPulls: stats.triggerPulls,
-        deaths: stats.deaths,
+        triggerPulls: stats.triggerPulls || existingStats.triggerPulls,
+        deaths: stats.deaths || existingStats.deaths,
+        maxStreak: stats.maxStreak !== undefined ? Math.max(existingStats.maxStreak || 0, stats.maxStreak) : (existingStats.maxStreak || 0),
         lastPlayed: Date.now(),
-        isPaid: stats.isPaid || existingStats.isPaid,
+        isPaid: stats.isPaid !== undefined ? stats.isPaid : existingStats.isPaid,
       };
 
       playerStats.set(address, updatedStats);
@@ -252,16 +255,27 @@ function updateLeaderboard(stats: LeaderboardEntry) {
   const board = leaderboard[mode];
 
   // Remove existing entry
-  const index = board.findIndex((entry) => entry.address === stats.address);
+  const index = board.findIndex((entry) => entry.address.toLowerCase() === stats.address.toLowerCase());
   if (index >= 0) {
     board.splice(index, 1);
   }
 
-  // Add updated entry
-  board.push(stats);
+  // Add updated entry with all required fields
+  const entry: LeaderboardEntry = {
+    address: stats.address,
+    triggerPulls: stats.triggerPulls || 0,
+    deaths: stats.deaths || 0,
+    maxStreak: stats.maxStreak || 0,
+    isPaid: stats.isPaid || false,
+    lastPlayed: stats.lastPlayed || Date.now(),
+  };
+  board.push(entry);
 
-  // Sort by trigger pulls (desc) and deaths (asc)
+  // Sort by maxStreak (desc), then trigger pulls (desc), then deaths (asc)
   board.sort((a, b) => {
+    if (b.maxStreak !== a.maxStreak) {
+      return b.maxStreak - a.maxStreak;
+    }
     if (b.triggerPulls !== a.triggerPulls) {
       return b.triggerPulls - a.triggerPulls;
     }

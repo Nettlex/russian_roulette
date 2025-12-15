@@ -25,6 +25,7 @@ export default function Home() {
   const { isFrameReady, setFrameReady } = useMiniKit();
   const { isConnected } = useAccount();
   const [showWelcome, setShowWelcome] = useState(true);
+  const [isInMiniapp, setIsInMiniapp] = useState(false);
 
   useEffect(() => {
     if (!isFrameReady) {
@@ -32,6 +33,19 @@ export default function Home() {
     }
     // Call Farcaster SDK ready to hide loading splash screen
     sdk.actions.ready().catch(console.error);
+    
+    // Check if we're in a Farcaster miniapp context
+    sdk.context
+      .then((context) => {
+        if (context) {
+          setIsInMiniapp(true);
+          console.log('Farcaster miniapp context:', context);
+        }
+      })
+      .catch(() => {
+        // Not in miniapp context, that's fine
+        setIsInMiniapp(false);
+      });
   }, [setFrameReady, isFrameReady]);
 
   // Auto-hide welcome screen after 3 seconds or when wallet connects
@@ -62,7 +76,9 @@ export default function Home() {
           <div className="space-y-4 pt-4">
             {/* Base Wallet Connect */}
             <div className="bg-gray-900/50 border border-gray-800 rounded-xl p-6">
-              <p className="text-sm text-gray-400 mb-3 text-center">Connect with Base</p>
+              <p className="text-sm text-gray-400 mb-3 text-center">
+                {isInMiniapp ? 'Wallet (Farcaster)' : 'Connect with Base'}
+              </p>
               <div className="flex justify-center">
                 <Wallet>
                   <ConnectWallet className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg shadow-lg transition-all flex items-center justify-center gap-2">
@@ -87,6 +103,11 @@ export default function Home() {
                 </WalletDropdown>
               </Wallet>
               </div>
+              {isInMiniapp && !isConnected && (
+                <p className="text-xs text-yellow-400 mt-2 text-center">
+                  Using Farcaster wallet context
+                </p>
+              )}
             </div>
 
             {/* Farcaster Login */}
