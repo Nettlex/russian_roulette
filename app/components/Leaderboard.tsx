@@ -175,7 +175,7 @@ export default function Leaderboard({ mode: initialMode }: { mode: 'free' | 'pai
 
                 {/* Score */}
                 <div className="text-right">
-                  <p className="text-2xl font-bold text-blue-400">{entry.score.toFixed(2)}</p>
+                  <p className="text-2xl font-bold text-blue-400">{(entry.score || 0).toFixed(2)}</p>
                   <p className="text-xs text-gray-500">Score</p>
                 </div>
               </div>
