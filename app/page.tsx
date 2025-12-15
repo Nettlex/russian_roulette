@@ -60,27 +60,45 @@ export default function Home() {
           
           console.log('Available connectors:', connectors.map(c => ({ id: c.id, name: c.name })));
           
-          // OnchainKit with miniKit.enabled should auto-connect, but if not, try manual connection
+          // In Farcaster miniapp, OnchainKit should auto-connect, but if it doesn't work,
+          // we need to manually trigger connection. The issue is that modals don't work in iframes.
+          // OnchainKit with miniKit.enabled should handle this, but if not, we'll try manual connection.
           if (!isConnected && connectors.length > 0) {
-              // Wait a bit for OnchainKit to initialize, then try to connect
-              setTimeout(() => {
-                if (!isConnected) {
-                  try {
-                    // Try Coinbase Wallet SDK connector first (works in miniapp)
-                    const cbConnector = connectors.find(c => c.id === 'coinbaseWalletSDK' || c.id === 'coinbaseWallet');
+            // Wait a bit for OnchainKit to initialize
+            setTimeout(() => {
+              if (!isConnected) {
+                try {
+                  // Look for Farcaster connector first
+                  const farcasterConnector = connectors.find(c => 
+                    c.id === 'farcasterMiniApp' || 
+                    c.id.includes('farcaster') ||
+                    c.name?.toLowerCase().includes('farcaster')
+                  );
+                  
+                  if (farcasterConnector) {
+                    console.log('Found Farcaster connector, attempting to connect...');
+                    connect({ connector: farcasterConnector });
+                  } else {
+                    // Try Coinbase Wallet SDK connector (works in miniapp)
+                    const cbConnector = connectors.find(c => 
+                      c.id === 'coinbaseWalletSDK' || 
+                      c.id === 'coinbaseWallet' ||
+                      c.id === 'coinbaseWalletSDK'
+                    );
                     if (cbConnector) {
                       console.log('Attempting to connect with Coinbase Wallet...');
                       connect({ connector: cbConnector });
                     } else if (connectors[0]) {
                       // Fallback to first available connector
-                      console.log('Attempting to connect with first available connector...');
+                      console.log('Attempting to connect with first available connector:', connectors[0].id);
                       connect({ connector: connectors[0] });
                     }
-                  } catch (err) {
-                    console.log('Connection attempt failed:', err);
                   }
+                } catch (err) {
+                  console.log('Connection attempt failed:', err);
                 }
-              }, 1000);
+              }
+            }, 2000); // Increased delay to give OnchainKit more time
           }
         }
       })

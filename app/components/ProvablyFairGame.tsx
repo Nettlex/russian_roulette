@@ -1,7 +1,8 @@
 "use client";
 import { useReducer, useEffect, useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useAccount } from 'wagmi';
+import { useAccount, useSendCalls, useWaitForTransactionReceipt } from 'wagmi';
+import { parseUnits, encodeFunctionData } from 'viem';
 import {
   Wallet,
   ConnectWallet,
@@ -27,6 +28,43 @@ import { useUSDCPayment } from '../hooks/useUSDCPayment';
 export default function ProvablyFairGame() {
   const { address, isConnected } = useAccount();
   const { payEntryFee, isPending: isPaymentPending, isConfirming: isPaymentConfirming, isSuccess: isPaymentSuccess, error: paymentError, balance: usdcBalance } = useUSDCPayment(address);
+  const { sendCalls, data: depositTxData, isPending: isDepositPending } = useSendCalls();
+  
+  // USDC contract address
+  const USDC_ADDRESS = process.env.NEXT_PUBLIC_CHAIN === 'mainnet'
+    ? '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913'
+    : '0x036CbD53842c5426634e7929541eC2318f3dCF7e';
+  
+  // Deposit wallet (use prize pool wallet for now, or set a separate one)
+  const DEPOSIT_WALLET = process.env.NEXT_PUBLIC_DEPOSIT_WALLET || process.env.NEXT_PUBLIC_PRIZE_POOL_WALLET || address;
+  
+  // Wait for deposit transaction
+  let depositHash: `0x${string}` | undefined = undefined;
+  if (depositTxData && typeof depositTxData === 'object' && depositTxData !== null && 'id' in depositTxData) {
+    const id = (depositTxData as { id: unknown }).id;
+    if (typeof id === 'string' && id.startsWith('0x')) {
+      depositHash = id as `0x${string}`;
+    }
+  }
+  
+  const { isLoading: isDepositConfirming, isSuccess: isDepositSuccess } = useWaitForTransactionReceipt({
+    hash: depositHash,
+    query: { enabled: !!depositHash },
+  });
+  
+  // Handle deposit success
+  useEffect(() => {
+    if (isDepositSuccess && depositHash) {
+      // Transaction confirmed, update balance
+      const depositAmount = parseFloat(localStorage.getItem(`lastDepositAmount_${address}`) || '0');
+      if (depositAmount > 0) {
+        saveBalance(userBalance + depositAmount);
+        localStorage.removeItem(`lastDepositAmount_${address}`);
+        setShowDepositModal(false);
+        alert(`✅ Deposited ${depositAmount} USDC successfully!`);
+      }
+    }
+  }, [isDepositSuccess, depositHash, address, userBalance]);
   const [state, dispatch] = useReducer(gameReducer, initialState);
   const [showVerification, setShowVerification] = useState(false);
   const [isAnimating, setIsAnimating] = useState(false);
@@ -377,13 +415,74 @@ export default function ProvablyFairGame() {
     }
   };
 
-  // Handle deposit
-  const handleDeposit = (amount: number) => {
-    // TODO: Implement real USDC deposit from wallet
-    console.log(`💰 Depositing ${amount} USDC`);
-    saveBalance(userBalance + amount);
-    setShowDepositModal(false);
-    alert(`Deposited ${amount} USDC successfully!`);
+  // Handle deposit - actually transfer USDC from wallet to deposit address
+  const handleDeposit = async (amount: number) => {
+    if (!isConnected || !address) {
+      alert('Please connect wallet first');
+      return;
+    }
+
+    if (amount <= 0) {
+      alert('Invalid deposit amount');
+      return;
+    }
+
+    // Check if user has enough USDC in wallet
+    if (usdcBalance < amount) {
+      alert(`Insufficient USDC balance. You have ${usdcBalance.toFixed(2)} USDC.`);
+      return;
+    }
+
+    if (!DEPOSIT_WALLET || DEPOSIT_WALLET === '0x0000000000000000000000000000000000000000') {
+      alert('Deposit wallet not configured');
+      return;
+    }
+
+    try {
+      // Convert amount to USDC units (6 decimals)
+      const amountInUnits = parseUnits(amount.toString(), 6);
+      
+      // USDC ABI for transfer
+      const USDC_ABI = [
+        {
+          name: 'transfer',
+          type: 'function',
+          stateMutability: 'nonpayable',
+          inputs: [
+            { name: 'to', type: 'address' },
+            { name: 'amount', type: 'uint256' },
+          ],
+          outputs: [{ name: '', type: 'bool' }],
+        },
+      ] as const;
+      
+      // Encode the transfer function call
+      const data = encodeFunctionData({
+        abi: USDC_ABI,
+        functionName: 'transfer',
+        args: [DEPOSIT_WALLET as `0x${string}`, amountInUnits],
+      });
+
+      // Save deposit amount for later confirmation
+      localStorage.setItem(`lastDepositAmount_${address}`, amount.toString());
+      
+      // Send USDC transfer
+      sendCalls({
+        calls: [
+          {
+            to: USDC_ADDRESS as `0x${string}`,
+            data: data,
+          },
+        ],
+      });
+      
+      // Show pending message
+      alert(`💰 Deposit transaction submitted! Waiting for confirmation...`);
+    } catch (error: any) {
+      console.error('Deposit error:', error);
+      alert(`Deposit failed: ${error.message || 'Unknown error'}`);
+      localStorage.removeItem(`lastDepositAmount_${address}`);
+    }
   };
 
   // Handle withdrawal - submits a request for manual processing
