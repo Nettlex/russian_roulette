@@ -7,6 +7,7 @@ export interface PrizeDistribution {
   timestamp: number;
   distributionId: string;
   rank: number;
+  approvedAt?: number;
 }
 
 export interface DistributionLog {
@@ -129,7 +130,7 @@ export function getDistributionLogs(): DistributionLog[] {
 
     try {
       const content = fs.readFileSync(logFile, 'utf-8');
-      return JSON.parse(content);
+      return JSON.parse(content) as DistributionLog[];
     } catch (error) {
       console.error('Error reading distribution logs:', error);
       return [];
@@ -138,7 +139,7 @@ export function getDistributionLogs(): DistributionLog[] {
     // Client-side: Read from localStorage
     const logsKey = 'prize_distribution_logs';
     const existingLogs = localStorage.getItem(logsKey);
-    return existingLogs ? JSON.parse(existingLogs) : [];
+    return existingLogs ? (JSON.parse(existingLogs) as DistributionLog[]) : [];
   }
 }
 

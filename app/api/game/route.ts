@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { calculatePrizeDistributionForLeaderboard, saveDistributionLog, getDistributionLogs } from '../../utils/prizeDistribution';
+import { calculatePrizeDistributionForLeaderboard, saveDistributionLog, getDistributionLogs, PrizeDistribution } from '../../utils/prizeDistribution';
 
 // In-memory storage (in production, use a database)
 const playerStats = new Map();
@@ -191,7 +191,7 @@ export async function POST(request: NextRequest) {
 
       logs.forEach(log => {
         if (log.distributionId === distributionId) {
-          log.distributions.forEach(dist => {
+          (log.distributions as PrizeDistribution[]).forEach((dist) => {
             if (dist.address.toLowerCase() === userAddress.toLowerCase() && dist.status === 'pending') {
               dist.status = 'approved';
               dist.approvedAt = Date.now();
