@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { calculatePrizeDistributionForLeaderboard, saveDistributionLog, getDistributionLogs, PrizeDistribution } from '../../utils/prizeDistribution';
-
-// In-memory storage (in production, use a database)
-const playerStats = new Map();
+import { getData, updateLeaderboardEntry, updatePlayerStats, getPlayerStats, updatePrizePool, initStorage } from '../../lib/storage';
 
 interface LeaderboardEntry {
   address: string;
@@ -15,20 +13,19 @@ interface LeaderboardEntry {
   lastPlayed?: number;
 }
 
-const leaderboard: {
-  free: LeaderboardEntry[];
-  paid: LeaderboardEntry[];
-} = {
-  free: [],
-  paid: [],
-};
-let prizePool = {
-  totalAmount: 0,
-  participants: 0,
-  lastUpdated: Date.now(),
-};
+// Initialize storage on first load
+let isInitialized = false;
+async function ensureInitialized() {
+  if (!isInitialized) {
+    await initStorage();
+    isInitialized = true;
+  }
+}
 
 export async function GET(request: NextRequest) {
+  await ensureInitialized();
+  const data = getData();
+  
   const { searchParams } = new URL(request.url);
   const action = searchParams.get('action');
   const address = searchParams.get('address');
@@ -37,28 +34,28 @@ export async function GET(request: NextRequest) {
     const mode = searchParams.get('mode') || 'all';
     
     if (mode === 'free') {
-      return NextResponse.json({ leaderboard: leaderboard.free });
+      return NextResponse.json({ leaderboard: data.leaderboard.free });
     } else if (mode === 'paid') {
       return NextResponse.json({ 
-        leaderboard: leaderboard.paid,
-        prizePool 
+        leaderboard: data.leaderboard.paid,
+        prizePool: data.prizePool 
       });
     }
     
     return NextResponse.json({ 
-      free: leaderboard.free,
-      paid: leaderboard.paid,
-      prizePool 
+      free: data.leaderboard.free,
+      paid: data.leaderboard.paid,
+      prizePool: data.prizePool 
     });
   }
 
   if (action === 'stats' && address) {
-    const stats = playerStats.get(address);
+    const stats = getPlayerStats(address);
     return NextResponse.json({ stats: stats || null });
   }
 
   if (action === 'prizepool') {
-    return NextResponse.json({ prizePool });
+    return NextResponse.json({ prizePool: data.prizePool });
   }
 
   if (action === 'pendingPrizes' && address) {
@@ -86,6 +83,8 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  await ensureInitialized();
+  
   try {
     const body = await request.json();
     const { action, address, stats, username } = body;
@@ -95,8 +94,8 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: 'Missing data' }, { status: 400 });
       }
 
-      // Update player stats
-      const existingStats = playerStats.get(address) || {
+      // Get existing stats
+      const existingStats = getPlayerStats(address) || {
         address,
         triggerPulls: 0,
         deaths: 0,
@@ -115,10 +114,22 @@ export async function POST(request: NextRequest) {
         username: username || existingStats.username, // Save username if provided
       };
 
-      playerStats.set(address, updatedStats);
+      // Save player stats
+      await updatePlayerStats(address, updatedStats);
 
       // Update leaderboard
-      updateLeaderboard(updatedStats);
+      await updateLeaderboardEntry(
+        updatedStats.isPaid ? 'paid' : 'free',
+        {
+          address: updatedStats.address,
+          username: updatedStats.username,
+          triggerPulls: updatedStats.triggerPulls || 0,
+          deaths: updatedStats.deaths || 0,
+          maxStreak: updatedStats.maxStreak || 0,
+          isPaid: updatedStats.isPaid || false,
+          lastPlayed: updatedStats.lastPlayed || Date.now(),
+        }
+      );
 
       return NextResponse.json({ success: true, stats: updatedStats });
     }
@@ -128,13 +139,17 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: 'Missing address' }, { status: 400 });
       }
 
+      // Get current data
+      const data = getData();
+
       // Update prize pool
-      prizePool.totalAmount += 1;
-      prizePool.participants += 1;
-      prizePool.lastUpdated = Date.now();
+      await updatePrizePool({
+        totalAmount: data.prizePool.totalAmount + 1,
+        participants: data.prizePool.participants + 1,
+      });
 
       // Update player stats
-      const stats = playerStats.get(address) || {
+      const existingStats = getPlayerStats(address) || {
         address,
         triggerPulls: 0,
         deaths: 0,
@@ -142,25 +157,28 @@ export async function POST(request: NextRequest) {
         isPaid: false,
       };
 
-      stats.isPaid = true;
-      playerStats.set(address, stats);
+      existingStats.isPaid = true;
+      await updatePlayerStats(address, existingStats);
 
       return NextResponse.json({ 
         success: true, 
-        prizePool 
+        prizePool: getData().prizePool 
       });
     }
 
     if (action === 'distributePrizes') {
+      // Get current data
+      const data = getData();
+      
       // Calculate and distribute prizes to all paid players
-      const paidEntries = leaderboard.paid.map((entry: any) => ({
+      const paidEntries = data.leaderboard.paid.map((entry: any) => ({
         address: entry.address,
         maxStreak: entry.maxStreak || 0,
         totalPulls: entry.triggerPulls || 0,
         totalDeaths: entry.deaths || 0,
       }));
 
-      if (paidEntries.length === 0 || prizePool.totalAmount === 0) {
+      if (paidEntries.length === 0 || data.prizePool.totalAmount === 0) {
         return NextResponse.json({ 
           error: 'No participants or empty prize pool' 
         }, { status: 400 });
@@ -168,7 +186,7 @@ export async function POST(request: NextRequest) {
 
       // Calculate distributions
       const distributions = calculatePrizeDistributionForLeaderboard(
-        prizePool.totalAmount,
+        data.prizePool.totalAmount,
         paidEntries
       );
 
@@ -176,7 +194,7 @@ export async function POST(request: NextRequest) {
       const distributionLog = {
         distributionId: distributions[0]?.distributionId || `dist_${Date.now()}`,
         timestamp: Date.now(),
-        prizePoolAmount: prizePool.totalAmount,
+        prizePoolAmount: data.prizePool.totalAmount,
         participants: paidEntries.length,
         distributions,
       };
@@ -185,14 +203,15 @@ export async function POST(request: NextRequest) {
       saveDistributionLog(distributionLog);
 
       // Reset prize pool after distribution
-      prizePool.totalAmount = 0;
-      prizePool.participants = 0;
-      prizePool.lastUpdated = Date.now();
+      await updatePrizePool({
+        totalAmount: 0,
+        participants: 0,
+      });
 
       return NextResponse.json({ 
         success: true, 
         distribution: distributionLog,
-        prizePool 
+        prizePool: getData().prizePool 
       });
     }
 
@@ -252,48 +271,6 @@ export async function POST(request: NextRequest) {
   }
 }
 
-function updateLeaderboard(stats: LeaderboardEntry) {
-  const mode = stats.isPaid ? 'paid' : 'free';
-  const board = leaderboard[mode];
-
-  // Remove existing entry
-  const index = board.findIndex((entry) => entry.address.toLowerCase() === stats.address.toLowerCase());
-  if (index >= 0) {
-    board.splice(index, 1);
-  }
-
-  // Add updated entry with all required fields
-  const entry: LeaderboardEntry = {
-    address: stats.address,
-    username: stats.username,
-    triggerPulls: stats.triggerPulls || 0,
-    deaths: stats.deaths || 0,
-    maxStreak: stats.maxStreak || 0,
-    isPaid: stats.isPaid || false,
-    lastPlayed: stats.lastPlayed || Date.now(),
-  };
-  board.push(entry);
-
-  // Sort by maxStreak (desc), then trigger pulls (desc), then deaths (asc)
-  board.sort((a, b) => {
-    if (b.maxStreak !== a.maxStreak) {
-      return b.maxStreak - a.maxStreak;
-    }
-    if (b.triggerPulls !== a.triggerPulls) {
-      return b.triggerPulls - a.triggerPulls;
-    }
-    return a.deaths - b.deaths;
-  });
-
-  // Add ranks
-  board.forEach((entry, index: number) => {
-    entry.rank = index + 1;
-  });
-
-  // Keep only top 50
-  if (board.length > 50) {
-    board.splice(50);
-  }
-}
+// Old updateLeaderboard function removed - now using storage module
 
 

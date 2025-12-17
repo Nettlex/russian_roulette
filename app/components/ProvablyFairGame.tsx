@@ -797,12 +797,21 @@ export default function ProvablyFairGame() {
     savePlayerStats(updatedStats);
     setShowDecisionUI(false);
     
-    // End run - go back to ready state
+    // End run - reset game state completely
     setCurrentRunSafePulls(0);
     setRunLockedIn(false);
     hasPlayedVideo.current = false; // Reset video flag on new round
     isProcessingTrigger.current = false; // Reset trigger processing flag
+    
+    // Reset game state to READY phase
+    dispatch({ type: 'RESET' });
+    
     setViewMode('ready');
+    setIsLoadingBullet(false);
+    setIsAnimating(false);
+    setTriggerCooldown(false);
+    
+    console.log('✅ Game reset to ready state after cash out');
   };
   
   // Handle go for record decision
