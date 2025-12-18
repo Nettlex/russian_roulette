@@ -1,18 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
 
+/**
+ * Initialize Edge Config with empty game data
+ * Run this once to set up the initial structure
+ */
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
-    const { key, value } = body;
-    
-    // Get Edge Config credentials from environment
     const edgeConfigId = process.env.EDGE_CONFIG_ID;
     const vercelToken = process.env.VERCEL_TOKEN;
     
     if (!edgeConfigId || !vercelToken) {
-      console.error('❌ Missing EDGE_CONFIG_ID or VERCEL_TOKEN environment variables');
       return NextResponse.json({ 
-        error: 'Edge Config not configured properly',
+        error: 'Missing EDGE_CONFIG_ID or VERCEL_TOKEN',
         missing: {
           edgeConfigId: !edgeConfigId,
           vercelToken: !vercelToken
@@ -20,9 +19,23 @@ export async function POST(request: NextRequest) {
       }, { status: 500 });
     }
     
-    console.log('🔄 Updating Edge Config:', { key, edgeConfigId });
+    // Initial data structure
+    const initialData = {
+      leaderboard: {
+        free: [],
+        paid: [],
+      },
+      prizePool: {
+        totalAmount: 0,
+        participants: 0,
+        lastUpdated: Date.now(),
+      },
+      playerStats: {},
+    };
     
-    // Update Edge Config via Vercel API
+    console.log('🔄 Initializing Edge Config with game-data key...');
+    
+    // Create the game-data key in Edge Config
     const response = await fetch(
       `https://api.vercel.com/v1/edge-config/${edgeConfigId}/items`,
       {
@@ -35,8 +48,8 @@ export async function POST(request: NextRequest) {
           items: [
             {
               operation: 'upsert',
-              key,
-              value,
+              key: 'game-data',
+              value: initialData,
             },
           ],
         }),
@@ -45,27 +58,25 @@ export async function POST(request: NextRequest) {
     
     if (!response.ok) {
       const error = await response.text();
-      console.error('❌ Edge Config update failed:', {
-        status: response.status,
-        statusText: response.statusText,
-        error
-      });
+      console.error('❌ Failed to initialize Edge Config:', error);
       return NextResponse.json({ 
-        error: 'Failed to update Edge Config',
+        error: 'Failed to initialize',
         status: response.status,
         details: error 
       }, { status: 500 });
     }
     
     const result = await response.json();
-    console.log('✅ Edge Config updated successfully');
+    console.log('✅ Edge Config initialized successfully!');
     
     return NextResponse.json({ 
       success: true,
-      result 
+      message: 'Edge Config initialized with game-data key',
+      initialData,
+      result
     });
   } catch (error) {
-    console.error('❌ Edge Config update error:', error);
+    console.error('❌ Initialization error:', error);
     return NextResponse.json({ 
       error: 'Internal server error',
       message: error instanceof Error ? error.message : 'Unknown error'
@@ -73,4 +84,11 @@ export async function POST(request: NextRequest) {
   }
 }
 
+export async function GET(request: NextRequest) {
+  return NextResponse.json({
+    message: 'Send a POST request to initialize Edge Config',
+    endpoint: '/api/init-edge-config',
+    method: 'POST'
+  });
+}
 
