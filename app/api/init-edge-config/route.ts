@@ -19,7 +19,27 @@ export async function POST(request: NextRequest) {
       }, { status: 500 });
     }
     
-    // Initial data structure
+    // First, check if game-data already exists using @vercel/edge-config
+    console.log('🔍 Checking if Edge Config game-data key exists...');
+    
+    try {
+      const { get } = await import('@vercel/edge-config');
+      const existingData = await get('game-data');
+      
+      if (existingData) {
+        console.log('⚠️ Edge Config already has game-data - skipping initialization to preserve data');
+        return NextResponse.json({ 
+          success: true,
+          message: 'Edge Config already initialized (data preserved)',
+          action: 'skipped',
+          existingData
+        });
+      }
+    } catch (error) {
+      console.log('⚠️ Could not check existing data, proceeding with initialization');
+    }
+    
+    // Initial data structure (only if key doesn't exist)
     const initialData = {
       leaderboard: {
         free: [],
@@ -31,9 +51,10 @@ export async function POST(request: NextRequest) {
         lastUpdated: Date.now(),
       },
       playerStats: {},
+      playerBalances: {}, // NEW: Include balance storage
     };
     
-    console.log('🔄 Initializing Edge Config with game-data key...');
+    console.log('🔄 Initializing Edge Config with game-data key (first time)...');
     
     // Create the game-data key in Edge Config
     const response = await fetch(
@@ -47,7 +68,7 @@ export async function POST(request: NextRequest) {
         body: JSON.stringify({
           items: [
             {
-              operation: 'upsert',
+              operation: 'upsert', // Safe now since we check if data exists first
               key: 'game-data',
               value: initialData,
             },

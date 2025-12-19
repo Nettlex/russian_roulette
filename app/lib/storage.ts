@@ -84,9 +84,9 @@ export async function loadData(): Promise<StorageData> {
       });
       return data;
     } else {
-      // First time - initialize with empty data
-      console.log('⚠️ No data in Edge Config yet, initializing...');
-      await saveData(cachedData);
+      // Edge Config is empty - DON'T overwrite!
+      // Return cached data without saving (let init-edge-config API handle initialization)
+      console.log('⚠️ No data in Edge Config - using empty cache (not overwriting!)');
       return cachedData;
     }
   } catch (error) {
