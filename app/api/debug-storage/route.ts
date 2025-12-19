@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getData, loadData } from '../../lib/storage';
 
+// ✅ FIX: Force Node.js runtime
+export const runtime = 'nodejs';
+
 export async function GET(request: NextRequest) {
   try {
     // Check environment variables

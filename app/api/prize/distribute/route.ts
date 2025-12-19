@@ -3,6 +3,9 @@ import { calculatePrizeDistributionForLeaderboard } from '../../../utils/prizeDi
 import fs from 'fs';
 import path from 'path';
 
+// ✅ FIX: Force Node.js runtime
+export const runtime = 'nodejs';
+
 /**
  * API endpoint to trigger prize distribution
  * This should be called manually or via cron job

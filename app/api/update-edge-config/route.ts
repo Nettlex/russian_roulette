@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 
+// ✅ FIX: Force Node.js runtime
+export const runtime = 'nodejs';
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();

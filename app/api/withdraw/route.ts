@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { saveWithdrawalRequest, getWithdrawalsForAddress, getPendingWithdrawals, updateWithdrawalStatus } from '../../utils/withdrawalManager';
 
+// ✅ FIX: Force Node.js runtime
+export const runtime = 'nodejs';
+
 /**
  * GET /api/withdraw
  * - Get withdrawal requests for an address

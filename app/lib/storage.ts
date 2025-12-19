@@ -55,20 +55,21 @@ let cachedData: StorageData = {
 };
 
 let lastFetch = 0;
-const CACHE_TTL = 30000; // 30 seconds cache
+const CACHE_TTL = 5000; // ⚠️ REDUCED: 5 seconds cache (was 30s) - minimize stale data on cold starts
 
 /**
  * Load data from Edge Config
+ * 
+ * ⚠️ CRITICAL: Always tries Edge Config first!
+ * Cache is ONLY used as fallback on errors, not for performance.
  */
 export async function loadData(): Promise<StorageData> {
   try {
     const now = Date.now();
     
-    // Use cache if fresh (30s TTL)
-    if (now - lastFetch < CACHE_TTL) {
-      console.log('📦 Using cached data (fresh)');
-      return cachedData;
-    }
+    // ✅ FIX: ALWAYS fetch from Edge Config (don't trust cache on serverless!)
+    // Cache check removed to prevent stale data on cold starts
+    console.log('🌐 Fetching fresh data from Edge Config (no cache)...');
     
     // Fetch from Edge Config
     const data = await get<StorageData>('game-data');

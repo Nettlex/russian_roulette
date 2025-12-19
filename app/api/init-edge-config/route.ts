@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 
+// ✅ FIX: Force Node.js runtime
+export const runtime = 'nodejs';
+
 /**
  * Initialize Edge Config with empty game data
  * Run this once to set up the initial structure

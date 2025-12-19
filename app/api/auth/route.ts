@@ -1,6 +1,9 @@
 import { Errors, createClient } from "@farcaster/quick-auth";
 import { NextRequest, NextResponse } from "next/server";
 
+// ✅ FIX: Force Node.js runtime
+export const runtime = 'nodejs';
+
 const client = createClient();
 
 // Helper function to determine the correct domain for JWT verification

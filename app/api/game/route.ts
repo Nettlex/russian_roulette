@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { calculatePrizeDistributionForLeaderboard, saveDistributionLog, getDistributionLogs, PrizeDistribution } from '../../utils/prizeDistribution';
 import { getData, updateLeaderboardEntry, updatePlayerStats, getPlayerStats, updatePrizePool, initStorage, getPlayerBalance, addBalance, deductBalance, addPendingPrize as addPendingPrizeStorage, approvePendingPrize as approvePendingPrizeStorage } from '../../lib/storage';
 
+// ✅ FIX: Force Node.js runtime (Edge runtime is stateless and loses data!)
+export const runtime = 'nodejs';
+
 interface LeaderboardEntry {
   address: string;
   username?: string;
