@@ -238,18 +238,31 @@ export async function getPlayerStats(address: string): Promise<any> {
 
 /**
  * Update prize pool
+ * ✅ FIX: Supports both absolute values and atomic increments
  */
 export async function updatePrizePool(update: {
-  totalAmount?: number;
-  participants?: number;
+  totalAmount?: number;  // Absolute value (replaces current)
+  participants?: number;  // Absolute value (replaces current)
+  incrementAmount?: number;  // Increment (adds to current)
+  incrementParticipants?: number;  // Increment (adds to current)
 }): Promise<void> {
   // ✅ FIX: ALWAYS load fresh data before writing to prevent overwriting!
   const data = await loadData();
-  data.prizePool = {
-    ...data.prizePool,
-    ...update,
-    lastUpdated: Date.now(),
-  };
+  
+  // Handle increments (atomic operations)
+  if (update.incrementAmount !== undefined) {
+    data.prizePool.totalAmount = (data.prizePool.totalAmount || 0) + update.incrementAmount;
+  } else if (update.totalAmount !== undefined) {
+    data.prizePool.totalAmount = update.totalAmount;
+  }
+  
+  if (update.incrementParticipants !== undefined) {
+    data.prizePool.participants = (data.prizePool.participants || 0) + update.incrementParticipants;
+  } else if (update.participants !== undefined) {
+    data.prizePool.participants = update.participants;
+  }
+  
+  data.prizePool.lastUpdated = Date.now();
   
   await saveData(data);
 }

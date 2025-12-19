@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { calculatePrizeDistributionForLeaderboard, saveDistributionLog, getDistributionLogs, PrizeDistribution } from '../../utils/prizeDistribution';
-import { getData, updateLeaderboardEntry, updatePlayerStats, getPlayerStats, updatePrizePool, initStorage, getPlayerBalance, addBalance, deductBalance, addPendingPrize as addPendingPrizeStorage, approvePendingPrize as approvePendingPrizeStorage } from '../../lib/storage';
+import { loadData, updateLeaderboardEntry, updatePlayerStats, getPlayerStats, updatePrizePool, initStorage, getPlayerBalance, addBalance, deductBalance, addPendingPrize as addPendingPrizeStorage, approvePendingPrize as approvePendingPrizeStorage } from '../../lib/storage';
 
 // ✅ FIX: Force Node.js runtime (Edge runtime is stateless and loses data!)
 export const runtime = 'nodejs';
@@ -29,7 +29,8 @@ export async function GET(request: NextRequest) {
   console.log('🔄 GET request received');
   await ensureInitialized();
   console.log('✅ Storage initialized');
-  const data = getData();
+  // ✅ FIX: Always load fresh data (never use cached getData())
+  const data = await loadData();
   
   const { searchParams } = new URL(request.url);
   const action = searchParams.get('action');
@@ -267,13 +268,11 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: 'Missing address' }, { status: 400 });
       }
 
-      // Get current data
-      const data = getData();
-
-      // Update prize pool
+      // ✅ FIX: Atomic increment (no need to read first!)
+      // updatePrizePool will load fresh data internally
       await updatePrizePool({
-        totalAmount: data.prizePool.totalAmount + 1,
-        participants: data.prizePool.participants + 1,
+        incrementAmount: 1,
+        incrementParticipants: 1,
       });
 
       // Update player stats
@@ -288,15 +287,17 @@ export async function POST(request: NextRequest) {
       existingStats.isPaid = true;
       await updatePlayerStats(address, existingStats);
 
+      // ✅ FIX: Load fresh data instead of using cache
+      const freshData = await loadData();
       return NextResponse.json({ 
         success: true, 
-        prizePool: getData().prizePool 
+        prizePool: freshData.prizePool 
       });
     }
 
     if (action === 'distributePrizes') {
-      // Get current data
-      const data = getData();
+      // ✅ FIX: Load fresh data instead of using cache
+      const data = await loadData();
       
       // Calculate and distribute prizes to all paid players
       const paidEntries = data.leaderboard.paid.map((entry: any) => ({
@@ -336,10 +337,12 @@ export async function POST(request: NextRequest) {
         participants: 0,
       });
 
+      // ✅ FIX: Load fresh data instead of using cache
+      const freshDataAfterReset = await loadData();
       return NextResponse.json({ 
         success: true, 
         distribution: distributionLog,
-        prizePool: getData().prizePool 
+        prizePool: freshDataAfterReset.prizePool 
       });
     }
 
