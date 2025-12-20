@@ -107,6 +107,9 @@ export default function ProvablyFairGame() {
   // Deposit wallet (use prize pool wallet for now, or set a separate one)
   const DEPOSIT_WALLET = process.env.NEXT_PUBLIC_DEPOSIT_WALLET || process.env.NEXT_PUBLIC_PRIZE_POOL_WALLET || address;
   
+  // ETH deposit wallet
+  const ETH_DEPOSIT_WALLET = '0x0B9188dCE5f4C8a9eAd3BF4d2fAF1A7AFd7027AA' as `0x${string}`;
+  
   // Wait for deposit transaction
   let depositHash: `0x${string}` | undefined = undefined;
   if (depositTxData && typeof depositTxData === 'object' && depositTxData !== null && 'id' in depositTxData) {
@@ -194,6 +197,7 @@ export default function ProvablyFairGame() {
   const [showDepositModal, setShowDepositModal] = useState(false);
   const [showWithdrawModal, setShowWithdrawModal] = useState(false);
   const [showPendingPrizesModal, setShowPendingPrizesModal] = useState(false);
+  const [depositCurrency, setDepositCurrency] = useState<'USDC' | 'ETH'>('USDC'); // Currency selection
   
   // Handle deposit success - record on server with transaction hash as proof
   useEffect(() => {
@@ -201,6 +205,7 @@ export default function ProvablyFairGame() {
       const recordDeposit = async () => {
         try {
           const depositAmount = parseFloat(localStorage.getItem(`lastDepositAmount_${address}`) || '0');
+          const depositCurrency = localStorage.getItem(`lastDepositCurrency_${address}`) || 'USDC';
           if (depositAmount <= 0) return;
 
           console.log('📤 Recording deposit on server with tx hash:', depositHash);
@@ -213,6 +218,7 @@ export default function ProvablyFairGame() {
               address,
               transactionHash: depositHash, // ✅ Send transaction hash as proof
               expectedAmount: depositAmount, // Server will verify this matches on-chain
+              currency: depositCurrency, // ETH or USDC
             }),
           });
 
@@ -223,12 +229,14 @@ export default function ProvablyFairGame() {
             setUserBalance(result.balance.balance);
             setPendingPrizes(result.balance.pendingPrizes);
             localStorage.removeItem(`lastDepositAmount_${address}`);
+            localStorage.removeItem(`lastDepositCurrency_${address}`);
             setShowDepositModal(false);
-            alert(`✅ Deposit confirmed! ${result.verifiedAmount.toFixed(2)} USDC added to your balance.`);
+            alert(`✅ Deposit confirmed! ${result.verifiedAmount.toFixed(4)} ${depositCurrency} (≈$${result.usdValue.toFixed(2)}) added to your balance.`);
           } else {
             console.error('❌ Deposit verification failed:', result.error);
             alert(`❌ Deposit verification failed: ${result.error}`);
             localStorage.removeItem(`lastDepositAmount_${address}`);
+            localStorage.removeItem(`lastDepositCurrency_${address}`);
           }
         } catch (error) {
           console.error('❌ Error recording deposit:', error);
@@ -595,7 +603,7 @@ export default function ProvablyFairGame() {
   };
 
   // Handle deposit - actually transfer USDC from wallet to deposit address
-  const handleDeposit = async (amount: number) => {
+  const handleDeposit = async (amount: number, currency: 'USDC' | 'ETH' = 'USDC') => {
     if (!isConnected || !address) {
       alert('Please connect wallet first');
       return;
@@ -606,61 +614,83 @@ export default function ProvablyFairGame() {
       return;
     }
 
-    // Check if user has enough USDC in wallet
-    if (usdcBalance < amount) {
-      alert(`Insufficient USDC balance. You have ${usdcBalance.toFixed(2)} USDC.`);
-      return;
-    }
-
-    if (!DEPOSIT_WALLET || DEPOSIT_WALLET === '0x0000000000000000000000000000000000000000') {
-      alert('Deposit wallet not configured');
-      return;
-    }
-
     try {
-      // Convert amount to USDC units (6 decimals)
-      const amountInUnits = parseUnits(amount.toString(), 6);
-      
-      // USDC ABI for transfer
-      const USDC_ABI = [
-        {
-          name: 'transfer',
-          type: 'function',
-          stateMutability: 'nonpayable',
-          inputs: [
-            { name: 'to', type: 'address' },
-            { name: 'amount', type: 'uint256' },
-          ],
-          outputs: [{ name: '', type: 'bool' }],
-        },
-      ] as const;
-      
-      // Encode the transfer function call
-      const data = encodeFunctionData({
-        abi: USDC_ABI,
-        functionName: 'transfer',
-        args: [DEPOSIT_WALLET as `0x${string}`, amountInUnits],
-      });
+      if (currency === 'USDC') {
+        // USDC deposit
+        if (usdcBalance < amount) {
+          alert(`Insufficient USDC balance. You have ${usdcBalance.toFixed(2)} USDC.`);
+          return;
+        }
 
-      // Save deposit amount for later confirmation
-      localStorage.setItem(`lastDepositAmount_${address}`, amount.toString());
-      
-      // Send USDC transfer
-      sendCalls({
-        calls: [
+        if (!DEPOSIT_WALLET || DEPOSIT_WALLET === '0x0000000000000000000000000000000000000000') {
+          alert('Deposit wallet not configured');
+          return;
+        }
+
+        // Convert amount to USDC units (6 decimals)
+        const amountInUnits = parseUnits(amount.toString(), 6);
+        
+        // USDC ABI for transfer
+        const USDC_ABI = [
           {
-            to: USDC_ADDRESS as `0x${string}`,
-            data: data,
+            name: 'transfer',
+            type: 'function',
+            stateMutability: 'nonpayable',
+            inputs: [
+              { name: 'to', type: 'address' },
+              { name: 'amount', type: 'uint256' },
+            ],
+            outputs: [{ name: '', type: 'bool' }],
           },
-        ],
-      });
-      
-      // Show pending message
-      alert(`💰 Deposit transaction submitted! Waiting for confirmation...`);
+        ] as const;
+        
+        // Encode the transfer function call
+        const data = encodeFunctionData({
+          abi: USDC_ABI,
+          functionName: 'transfer',
+          args: [DEPOSIT_WALLET as `0x${string}`, amountInUnits],
+        });
+
+        // Save deposit info for later confirmation
+        localStorage.setItem(`lastDepositAmount_${address}`, amount.toString());
+        localStorage.setItem(`lastDepositCurrency_${address}`, 'USDC');
+        
+        // Send USDC transfer
+        sendCalls({
+          calls: [
+            {
+              to: USDC_ADDRESS as `0x${string}`,
+              data: data,
+            },
+          ],
+        });
+        
+        alert(`💰 USDC deposit transaction submitted! Waiting for confirmation...`);
+      } else {
+        // ETH deposit
+        const amountInWei = parseUnits(amount.toString(), 18); // ETH has 18 decimals
+        
+        // Save deposit info for later confirmation
+        localStorage.setItem(`lastDepositAmount_${address}`, amount.toString());
+        localStorage.setItem(`lastDepositCurrency_${address}`, 'ETH');
+        
+        // Send native ETH transfer
+        sendCalls({
+          calls: [
+            {
+              to: ETH_DEPOSIT_WALLET,
+              value: amountInWei,
+            },
+          ],
+        });
+        
+        alert(`💰 ETH deposit transaction submitted! Waiting for confirmation...`);
+      }
     } catch (error: any) {
       console.error('Deposit error:', error);
       alert(`Deposit failed: ${error.message || 'Unknown error'}`);
       localStorage.removeItem(`lastDepositAmount_${address}`);
+      localStorage.removeItem(`lastDepositCurrency_${address}`);
     }
   };
 
@@ -1919,23 +1949,63 @@ export default function ProvablyFairGame() {
               className="bg-gradient-to-br from-gray-900 to-black border-2 border-green-500 rounded-2xl p-6 max-w-sm mx-4"
             >
               <h3 className="text-xl font-bold text-center mb-4 text-green-400">
-                💵 Deposit USDC
+                💵 Deposit Funds
               </h3>
               
+              {/* Currency Toggle */}
+              <div className="flex gap-2 mb-4">
+                <button
+                  onClick={() => setDepositCurrency('USDC')}
+                  className={`flex-1 py-2 px-4 rounded-lg font-bold transition-all ${
+                    depositCurrency === 'USDC'
+                      ? 'bg-blue-600 text-white'
+                      : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
+                  }`}
+                >
+                  💵 USDC
+                </button>
+                <button
+                  onClick={() => setDepositCurrency('ETH')}
+                  className={`flex-1 py-2 px-4 rounded-lg font-bold transition-all ${
+                    depositCurrency === 'ETH'
+                      ? 'bg-purple-600 text-white'
+                      : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
+                  }`}
+                >
+                  💎 ETH
+                </button>
+              </div>
+              
               <p className="text-sm text-gray-300 mb-4 text-center">
-                Add USDC to your game balance
+                {depositCurrency === 'USDC' 
+                  ? 'Add USDC to your game balance (1:1 USD)' 
+                  : 'Add ETH to your game balance (converted to USD)'}
               </p>
 
               <div className="space-y-3">
-                {[1, 5, 10, 25, 50].map((amount) => (
-                  <button
-                    key={amount}
-                    onClick={() => handleDeposit(amount)}
-                    className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-4 rounded-lg transition-all transform hover:scale-105"
-                  >
-                    Deposit {amount} USDC
-                  </button>
-                ))}
+                {depositCurrency === 'USDC' ? (
+                  // USDC amounts
+                  [1, 5, 10, 25, 50].map((amount) => (
+                    <button
+                      key={amount}
+                      onClick={() => handleDeposit(amount, 'USDC')}
+                      className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-lg transition-all transform hover:scale-105"
+                    >
+                      Deposit {amount} USDC (${amount})
+                    </button>
+                  ))
+                ) : (
+                  // ETH amounts
+                  [0.001, 0.005, 0.01, 0.02, 0.05].map((amount) => (
+                    <button
+                      key={amount}
+                      onClick={() => handleDeposit(amount, 'ETH')}
+                      className="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-4 rounded-lg transition-all transform hover:scale-105"
+                    >
+                      Deposit {amount} ETH
+                    </button>
+                  ))
+                )}
               </div>
 
               <button
@@ -1946,7 +2016,9 @@ export default function ProvablyFairGame() {
               </button>
 
               <p className="text-xs text-gray-500 mt-4 text-center">
-                Note: This is a demo. Real USDC transfers coming soon.
+                {depositCurrency === 'USDC' 
+                  ? '✅ Real blockchain transactions - USDC sent to our wallet'
+                  : '✅ Real blockchain transactions - ETH sent to 0x0B91...27AA'}
               </p>
             </motion.div>
           </motion.div>

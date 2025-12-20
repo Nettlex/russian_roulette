@@ -20,6 +20,7 @@ const USDC_ADDRESS = process.env.NEXT_PUBLIC_CHAIN === 'mainnet'
   : '0x036CbD53842c5426634e7929541eC2318f3dCF7e';
 
 const DEPOSIT_WALLET = process.env.NEXT_PUBLIC_DEPOSIT_WALLET || process.env.NEXT_PUBLIC_PRIZE_POOL_WALLET;
+const ETH_DEPOSIT_WALLET = '0x0B9188dCE5f4C8a9eAd3BF4d2fAF1A7AFd7027AA';
 
 interface LeaderboardEntry {
   address: string;
@@ -417,14 +418,14 @@ export async function POST(request: NextRequest) {
 
     if (action === 'deposit') {
       // ✅ SECURE: Verify transaction on-chain before crediting balance
-      const { transactionHash, expectedAmount } = body;
+      const { transactionHash, expectedAmount, currency = 'USDC' } = body;
       
       if (!address || !transactionHash) {
         return NextResponse.json({ error: 'Missing transaction hash' }, { status: 400 });
       }
 
       try {
-        console.log('🔍 Verifying deposit transaction:', transactionHash);
+        console.log(`🔍 Verifying ${currency} deposit transaction:`, transactionHash);
         
         // Get transaction receipt from blockchain
         const receipt = await publicClient.getTransactionReceipt({
@@ -437,66 +438,103 @@ export async function POST(request: NextRequest) {
           return NextResponse.json({ error: 'Transaction failed on-chain' }, { status: 400 });
         }
 
-        // Verify transaction is to USDC contract
-        if (receipt.to?.toLowerCase() !== USDC_ADDRESS.toLowerCase()) {
-          console.error('❌ Transaction is not to USDC contract');
-          return NextResponse.json({ error: 'Invalid transaction: not a USDC transfer' }, { status: 400 });
-        }
-
-        // Parse Transfer event from logs to get amount and recipient
-        const transferEventAbi = parseAbi(['event Transfer(address indexed from, address indexed to, uint256 value)']);
-        
         let transferAmount = 0;
-        let transferTo = '';
+        let usdValue = 0;
         let transferFrom = '';
+        let transferTo = '';
 
-        for (const log of receipt.logs) {
-          if (log.address.toLowerCase() === USDC_ADDRESS.toLowerCase()) {
-            try {
-              const decoded = decodeEventLog({
-                abi: transferEventAbi,
-                data: log.data,
-                topics: log.topics,
-              });
+        if (currency === 'ETH') {
+          // ✅ ETH (native) transaction verification
+          // Get actual transaction details
+          const tx = await publicClient.getTransaction({
+            hash: transactionHash as `0x${string}`,
+          });
 
-              if (decoded.eventName === 'Transfer') {
-                transferFrom = decoded.args.from as string;
-                transferTo = decoded.args.to as string;
-                transferAmount = Number(decoded.args.value) / 1_000_000; // USDC has 6 decimals
-                break;
+          transferFrom = tx.from;
+          transferTo = tx.to || '';
+          transferAmount = Number(tx.value) / 1e18; // ETH has 18 decimals
+
+          // Verify the transfer is from the user
+          if (transferFrom.toLowerCase() !== address.toLowerCase()) {
+            console.error('❌ Transfer is not from the requesting user');
+            return NextResponse.json({ error: 'Invalid transaction: sender mismatch' }, { status: 400 });
+          }
+
+          // Verify the transfer is to the ETH deposit wallet
+          if (transferTo.toLowerCase() !== ETH_DEPOSIT_WALLET.toLowerCase()) {
+            console.error('❌ Transfer is not to the ETH deposit wallet');
+            return NextResponse.json({ error: 'Invalid transaction: recipient mismatch' }, { status: 400 });
+          }
+
+          // TODO: Convert ETH to USD using price oracle
+          // For now, use rough estimate: 1 ETH ≈ $3000 (should use Chainlink oracle in production)
+          const ETH_PRICE_USD = 3000; // Replace with Chainlink price feed
+          usdValue = transferAmount * ETH_PRICE_USD;
+
+        } else {
+          // ✅ USDC transaction verification
+          // Verify transaction is to USDC contract
+          if (receipt.to?.toLowerCase() !== USDC_ADDRESS.toLowerCase()) {
+            console.error('❌ Transaction is not to USDC contract');
+            return NextResponse.json({ error: 'Invalid transaction: not a USDC transfer' }, { status: 400 });
+          }
+
+          // Parse Transfer event from logs to get amount and recipient
+          const transferEventAbi = parseAbi(['event Transfer(address indexed from, address indexed to, uint256 value)']);
+          
+          for (const log of receipt.logs) {
+            if (log.address.toLowerCase() === USDC_ADDRESS.toLowerCase()) {
+              try {
+                const decoded = decodeEventLog({
+                  abi: transferEventAbi,
+                  data: log.data,
+                  topics: log.topics,
+                });
+
+                if (decoded.eventName === 'Transfer') {
+                  transferFrom = decoded.args.from as string;
+                  transferTo = decoded.args.to as string;
+                  transferAmount = Number(decoded.args.value) / 1_000_000; // USDC has 6 decimals
+                  break;
+                }
+              } catch (e) {
+                // Skip logs that don't match Transfer event
+                continue;
               }
-            } catch (e) {
-              // Skip logs that don't match Transfer event
-              continue;
             }
           }
-        }
 
-        // Verify the transfer is from the user
-        if (transferFrom.toLowerCase() !== address.toLowerCase()) {
-          console.error('❌ Transfer is not from the requesting user');
-          return NextResponse.json({ error: 'Invalid transaction: sender mismatch' }, { status: 400 });
-        }
+          // Verify the transfer is from the user
+          if (transferFrom.toLowerCase() !== address.toLowerCase()) {
+            console.error('❌ Transfer is not from the requesting user');
+            return NextResponse.json({ error: 'Invalid transaction: sender mismatch' }, { status: 400 });
+          }
 
-        // Verify the transfer is to the deposit wallet
-        if (transferTo.toLowerCase() !== DEPOSIT_WALLET?.toLowerCase()) {
-          console.error('❌ Transfer is not to the deposit wallet');
-          return NextResponse.json({ error: 'Invalid transaction: recipient mismatch' }, { status: 400 });
+          // Verify the transfer is to the deposit wallet
+          if (transferTo.toLowerCase() !== DEPOSIT_WALLET?.toLowerCase()) {
+            console.error('❌ Transfer is not to the deposit wallet');
+            return NextResponse.json({ error: 'Invalid transaction: recipient mismatch' }, { status: 400 });
+          }
+
+          // USDC is 1:1 with USD
+          usdValue = transferAmount;
         }
 
         // Verify amount (allow small rounding differences)
-        if (expectedAmount && Math.abs(transferAmount - expectedAmount) > 0.01) {
+        if (expectedAmount && Math.abs(transferAmount - expectedAmount) > 0.0001) {
           console.warn(`⚠️ Amount mismatch: expected ${expectedAmount}, got ${transferAmount}`);
         }
 
-        // ✅ Transaction verified! Credit balance
-        const updated = await addBalance(address, transferAmount, 'deposit');
-        console.log('✅ Deposit verified and recorded:', address, transferAmount, 'USDC');
+        // ✅ Transaction verified! Credit balance (in USD)
+        const updated = await addBalance(address, usdValue, 'deposit');
+        console.log(`✅ Deposit verified and recorded: ${address} - ${transferAmount} ${currency} (≈$${usdValue.toFixed(2)})`);
         
         return NextResponse.json({ 
           success: true, 
           balance: updated,
           verifiedAmount: transferAmount,
+          currency,
+          usdValue,
           transactionHash 
         });
       } catch (error: any) {
