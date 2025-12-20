@@ -199,6 +199,13 @@ export default function ProvablyFairGame() {
   const [showWithdrawModal, setShowWithdrawModal] = useState(false);
   const [showPendingPrizesModal, setShowPendingPrizesModal] = useState(false);
   const [depositCurrency, setDepositCurrency] = useState<'USDC' | 'ETH'>('USDC'); // Currency selection
+  const [notification, setNotification] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
+  
+  // Show notification instead of alert (works in sandboxed iframes)
+  const showNotification = (message: string, type: 'success' | 'error' | 'info' = 'info') => {
+    setNotification({ message, type });
+    setTimeout(() => setNotification(null), 5000); // Auto-hide after 5 seconds
+  };
   
   // Toast notifications (replaces alert() for iframe compatibility)
   const [toasts, setToasts] = useState<Array<{ id: string; message: string; type: 'success' | 'error' | 'info' | 'warning' }>>([]);
@@ -2219,6 +2226,69 @@ export default function ProvablyFairGame() {
         onSave={handleSaveUsername}
         onClose={() => setShowUsernameModal(false)}
       />
+      
+      {/* Toast Notifications - Fixed position, works in iframes */}
+      <div className="fixed top-4 right-4 z-[10000] space-y-2 pointer-events-none">
+        <AnimatePresence>
+          {toasts.map((toast) => (
+            <motion.div
+              key={toast.id}
+              initial={{ opacity: 0, x: 100, scale: 0.8 }}
+              animate={{ opacity: 1, x: 0, scale: 1 }}
+              exit={{ opacity: 0, x: 100, scale: 0.8 }}
+              className={`pointer-events-auto max-w-sm px-4 py-3 rounded-lg shadow-lg border-2 ${
+                toast.type === 'success'
+                  ? 'bg-green-900 border-green-500 text-green-100'
+                  : toast.type === 'error'
+                  ? 'bg-red-900 border-red-500 text-red-100'
+                  : toast.type === 'warning'
+                  ? 'bg-yellow-900 border-yellow-500 text-yellow-100'
+                  : 'bg-blue-900 border-blue-500 text-blue-100'
+              }`}
+            >
+              <div className="flex items-start gap-3">
+                <span className="text-2xl">
+                  {toast.type === 'success' && '✅'}
+                  {toast.type === 'error' && '❌'}
+                  {toast.type === 'warning' && '⚠️'}
+                  {toast.type === 'info' && 'ℹ️'}
+                </span>
+                <div className="flex-1">
+                  <p className="text-sm font-medium">{toast.message}</p>
+                </div>
+                <button
+                  onClick={() => removeToast(toast.id)}
+                  className="text-gray-400 hover:text-white transition-colors"
+                >
+                  ✕
+                </button>
+              </div>
+            </motion.div>
+          ))}
+        </AnimatePresence>
+      </div>
+      
+      {/* Notification Banner (alternative to alerts) */}
+      <AnimatePresence>
+        {notification && (
+          <motion.div
+            initial={{ opacity: 0, y: -50 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -50 }}
+            className="fixed top-20 left-1/2 transform -translate-x-1/2 z-[10000] max-w-md mx-4"
+          >
+            <div className={`px-6 py-4 rounded-lg shadow-2xl border-2 ${
+              notification.type === 'success'
+                ? 'bg-green-900 border-green-500 text-green-100'
+                : notification.type === 'error'
+                ? 'bg-red-900 border-red-500 text-red-100'
+                : 'bg-blue-900 border-blue-500 text-blue-100'
+            }`}>
+              <p className="text-center font-medium">{notification.message}</p>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
       </div>
     </>
   );
