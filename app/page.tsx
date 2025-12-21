@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+import OnboardingModal from "./components/OnboardingModal";
 import { useMiniKit } from "@coinbase/onchainkit/minikit";
 import { useAccount, useConnect, useDisconnect } from "wagmi";
 import { sdk } from '@farcaster/miniapp-sdk';
@@ -29,6 +30,16 @@ export default function Home() {
   const [showWelcome, setShowWelcome] = useState(true);
   const [isInMiniapp, setIsInMiniapp] = useState(false);
   const [farcasterAddress, setFarcasterAddress] = useState<string | null>(null);
+  const [showOnboarding, setShowOnboarding] = useState(false);
+
+  // Check if user has seen onboarding
+  useEffect(() => {
+    const hasSeenOnboarding = localStorage.getItem('hasSeenOnboarding');
+    if (!hasSeenOnboarding) {
+      // Show onboarding after a short delay
+      setTimeout(() => setShowOnboarding(true), 1000);
+    }
+  }, []);
 
   useEffect(() => {
     if (!isFrameReady) {
@@ -124,7 +135,7 @@ export default function Home() {
             {/* Base Wallet Connect */}
             <div className="bg-gray-900/50 border border-gray-800 rounded-xl p-6">
               <p className="text-sm text-gray-400 mb-3 text-center">
-                {isInMiniapp ? 'Wallet (Farcaster)' : 'Connect with Base'}
+                Connect Wallet
               </p>
               <div className="flex flex-col items-center w-full">
                 {!isConnected ? (
@@ -158,12 +169,12 @@ export default function Home() {
                     )}
                     {isInMiniapp && farcasterAddress && (
                       <p className="text-xs text-blue-400 mt-2 text-center">
-                        Farcaster wallet: {farcasterAddress.slice(0, 6)}...{farcasterAddress.slice(-4)}
+                        Wallet detected: {farcasterAddress.slice(0, 6)}...{farcasterAddress.slice(-4)}
                       </p>
                     )}
                     {isInMiniapp && (
                       <p className="text-xs text-yellow-400 mt-2 text-center">
-                        Click button above to connect in Farcaster
+                        Click button above to connect your wallet
                       </p>
                     )}
                     {!isInMiniapp && (
@@ -198,22 +209,17 @@ export default function Home() {
               </div>
             </div>
 
-            {/* Farcaster Login */}
-            <div className="bg-purple-900/20 border border-purple-700 rounded-xl p-6">
-              <p className="text-sm text-gray-400 mb-3 text-center">Add to Farcaster</p>
-              <button 
-                onClick={() => {
-                  // TODO: Implement Farcaster auth
-                  console.log('🟣 Farcaster login');
-                  alert('Farcaster integration coming soon! For now, use wallet connect.');
-                }}
-                className="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-6 rounded-lg shadow-lg transition-all flex items-center justify-center gap-2"
-              >
-                <span className="text-xl">🟣</span>
-                <span>Login with Farcaster</span>
-              </button>
-              <p className="text-xs text-purple-300 mt-2 text-center">
-                Add this mini app to your Farcaster apps
+            {/* Quick Start Guide */}
+            <div className="bg-blue-900/20 border border-blue-700 rounded-xl p-6">
+              <p className="text-sm text-gray-400 mb-3 text-center">How to Play</p>
+              <div className="space-y-2 text-xs text-gray-300">
+                <p>1️⃣ Connect your wallet</p>
+                <p>2️⃣ Deposit USDC or ETH to play</p>
+                <p>3️⃣ Pull the trigger & build your streak</p>
+                <p>4️⃣ Cash out or compete for prizes!</p>
+              </div>
+              <p className="text-xs text-blue-300 mt-3 text-center">
+                Survive 6 pulls to win the prize pool
               </p>
             </div>
           </div>
@@ -234,6 +240,12 @@ export default function Home() {
     <div className="relative">
       {/* Main Game - Provably Fair */}
       <ProvablyFairGame />
+      
+      {/* Onboarding Modal */}
+      <OnboardingModal 
+        isOpen={showOnboarding} 
+        onClose={() => setShowOnboarding(false)} 
+      />
     </div>
   );
 }

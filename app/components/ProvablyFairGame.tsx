@@ -2194,7 +2194,7 @@ export default function ProvablyFairGame() {
 
       {/* Bottom Navigation */}
       <div className="fixed bottom-0 left-0 right-0 bg-gray-900 border-t border-gray-800 w-full mx-auto">
-        <div className="grid grid-cols-3 gap-0 max-w-md mx-auto w-full">
+        <div className="grid grid-cols-4 gap-0 max-w-md mx-auto w-full">
           <button
             onClick={() => setShowPage('game')}
             className="py-3 text-white bg-gray-800 border-t-2 border-red-500"
@@ -2215,6 +2215,17 @@ export default function ProvablyFairGame() {
           >
             <div className="text-xl">👤</div>
             <div className="text-[10px]">Profile</div>
+          </button>
+          <button
+            onClick={() => {
+              localStorage.removeItem('hasSeenOnboarding');
+              window.location.reload();
+            }}
+            className="py-3 text-gray-400 hover:text-white hover:bg-gray-800 transition-all"
+            title="View tutorial"
+          >
+            <div className="text-xl">❓</div>
+            <div className="text-[10px]">Help</div>
           </button>
         </div>
       </div>
