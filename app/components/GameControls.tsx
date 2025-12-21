@@ -91,14 +91,14 @@ export default function GameControls({
           className="mt-4 p-4 bg-gray-800 rounded-xl border-2 border-gray-700"
         >
           <p className="text-center text-gray-300 text-sm mb-3">
-            Join the prize pool for a chance to win!
+            Join the community pool and compete!
           </p>
           <button
             onClick={onPayAndPlay}
             className="w-full bg-gradient-to-r from-green-500 to-green-600 text-white font-bold py-3 px-6 rounded-lg shadow-lg hover:shadow-2xl transition-all hover:scale-105"
           >
             <div className="flex items-center justify-center gap-2">
-              <span className="text-xl">💰</span>
+              <span className="text-xl">🎮</span>
               <span>Play for 1 USDC</span>
             </div>
           </button>
@@ -107,7 +107,7 @@ export default function GameControls({
 
       {gameState.isPaid && (
         <div className="text-center p-2 bg-green-900 text-green-200 rounded-lg">
-          <span className="text-sm">✓ Entered in Prize Pool</span>
+          <span className="text-sm">✓ Entered in Community Pool</span>
         </div>
       )}
     </div>

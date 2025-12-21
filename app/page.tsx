@@ -216,10 +216,10 @@ export default function Home() {
                 <p>1️⃣ Connect your wallet</p>
                 <p>2️⃣ Deposit USDC or ETH to play</p>
                 <p>3️⃣ Pull the trigger & build your streak</p>
-                <p>4️⃣ Cash out or compete for prizes!</p>
+                <p>4️⃣ Cash out or compete on the leaderboard</p>
               </div>
               <p className="text-xs text-blue-300 mt-3 text-center">
-                Survive 6 pulls to win the prize pool
+                Survive 6 pulls to complete the round
               </p>
             </div>
           </div>

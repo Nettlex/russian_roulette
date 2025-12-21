@@ -15,12 +15,12 @@ export default function PrizePoolBar({ prizePool, isPaidMode }: PrizePoolBarProp
       className="w-full bg-black/80 backdrop-blur-md border-b border-yellow-900/30 py-3 px-4"
     >
       <div className="max-w-7xl mx-auto flex items-center justify-between">
-        {/* Prize Pool Amount */}
+        {/* Community Pool Amount */}
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-2">
-            <span className="text-yellow-500 text-2xl">💰</span>
+            <span className="text-yellow-500 text-2xl">🎮</span>
             <div>
-              <p className="text-xs text-gray-600">PRIZE POOL</p>
+              <p className="text-xs text-gray-600">COMMUNITY POOL</p>
               <motion.p
                 className="text-2xl font-bold text-yellow-400 drop-shadow-[0_0_10px_rgba(234,179,8,0.5)]"
                 animate={{

@@ -1779,8 +1779,8 @@ export default function ProvablyFairGame() {
                   onClick={handleChooseUSDC}
                   className="w-full bg-gradient-to-r from-yellow-600 to-yellow-700 hover:from-yellow-700 hover:to-yellow-800 text-white font-bold py-4 px-6 rounded-xl transition-all transform hover:scale-105 shadow-lg"
                 >
-                  <div className="text-lg">💰 Play with 1 USDC</div>
-                  <div className="text-xs mt-1 opacity-80">Join weekly prize pool & leaderboard</div>
+                  <div className="text-lg">🎮 Play with 1 USDC</div>
+                  <div className="text-xs mt-1 opacity-80">Join community pool & compete</div>
                 </button>
 
                 {/* Stay Free Option */}
@@ -2039,8 +2039,8 @@ export default function ProvablyFairGame() {
 
               <p className="text-xs text-gray-500 mt-4 text-center">
                 {depositCurrency === 'USDC' 
-                  ? '✅ Real blockchain transactions - USDC sent to our wallet'
-                  : '✅ Real blockchain transactions - ETH sent to 0x0B91...27AA'}
+                  ? '✅ Real onchain transactions - USDC sent to our wallet'
+                  : '✅ Real onchain transactions - ETH sent to 0x0B91...27AA'}
               </p>
             </motion.div>
           </motion.div>

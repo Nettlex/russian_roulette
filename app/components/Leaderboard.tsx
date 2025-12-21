@@ -91,7 +91,7 @@ export default function Leaderboard({ mode: initialMode }: { mode: 'free' | 'pai
           🏆 LEADERBOARD
         </h1>
         <p className="text-center text-xs text-gray-500 mb-3">
-          {currentMode === 'free' ? 'Free Play Rankings' : 'USDC Prize Pool Rankings'}
+          {currentMode === 'free' ? 'Free Play Rankings' : 'Community Pool Rankings'}
         </p>
         
         {/* Mode Toggle */}
@@ -208,7 +208,7 @@ export default function Leaderboard({ mode: initialMode }: { mode: 'free' | 'pai
           className="mt-8 bg-gradient-to-r from-yellow-900/30 to-orange-900/30 border border-yellow-700 rounded-xl p-6"
         >
           <h3 className="text-xl font-bold text-yellow-400 mb-2 text-center">
-            💰 Weekly Prize Pool
+            🎮 Weekly Community Pool
           </h3>
           <p className="text-3xl font-bold text-center text-white mb-2">
             {prizePool.toFixed(2)} USDC
