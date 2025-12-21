@@ -44,13 +44,13 @@ export default function Profile({ playerStats, userBalance, username, onDeposit,
               <div className="flex-1">
                 {username ? (
                   <div>
-                    <p className="font-bold text-white">{username}</p>
-                    <Address className="text-xs text-gray-500" />
+                    <p className="font-bold text-lg text-white">{username}</p>
+                    <p className="text-xs text-gray-500">Connected to Base</p>
                   </div>
                 ) : (
                   <div>
-                    <Name className="font-bold" />
-                    <Address className="text-xs text-gray-500" />
+                    <Name className="font-bold text-lg" />
+                    <p className="text-xs text-gray-500">Connected to Base</p>
                   </div>
                 )}
               </div>
@@ -60,7 +60,7 @@ export default function Profile({ playerStats, userBalance, username, onDeposit,
                   className="text-xs bg-gray-800 hover:bg-gray-700 text-gray-400 hover:text-white px-3 py-1 rounded-lg transition-all"
                   title="Edit username"
                 >
-                  ✏️
+                  ✏️ Edit
                 </button>
               )}
             </div>

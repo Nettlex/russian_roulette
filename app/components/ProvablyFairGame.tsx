@@ -1141,10 +1141,19 @@ export default function ProvablyFairGame() {
                 <Name />
               </ConnectWallet>
               <WalletDropdown>
-                <Identity className="px-4 pt-3 pb-2" hasCopyAddressOnClick>
+                <Identity className="px-4 pt-3 pb-2">
                   <Avatar />
-                  <Name />
-                  <Address />
+                  {username ? (
+                    <div>
+                      <div className="font-bold text-white">{username}</div>
+                      <div className="text-xs text-gray-500">Connected to Base</div>
+                    </div>
+                  ) : (
+                    <div>
+                      <Name />
+                      <div className="text-xs text-gray-500">Connected to Base</div>
+                    </div>
+                  )}
                 </Identity>
                 <WalletDropdownFundLink />
                 <WalletDropdownDisconnect />
@@ -1187,6 +1196,15 @@ export default function ProvablyFairGame() {
             </button>
           </div>
         </div>
+
+        {/* Welcome message for non-connected users */}
+        {!isConnected && (
+          <div className="bg-green-900/20 border border-green-700 rounded-lg px-3 py-2 mb-1">
+            <p className="text-[10px] text-green-300 text-center">
+              👋 Welcome! You can play for free right now - Connect wallet anytime to compete for rewards
+            </p>
+          </div>
+        )}
 
         {/* Balance Row (only if connected) */}
         {isConnected && (
@@ -1275,7 +1293,14 @@ export default function ProvablyFairGame() {
           animate={{ opacity: 1, y: 0 }}
           className="my-1 flex flex-col items-center justify-center flex-1 min-h-0"
         >
-          <p className="text-[11px] text-gray-500 text-center mb-2">Click bullet to load</p>
+          <div className="text-center mb-2">
+            <p className="text-[11px] text-gray-500 mb-1">Click bullet to load</p>
+            {!isConnected && (
+              <p className="text-[10px] text-green-400 animate-pulse">
+                🎮 Playing free mode - No wallet required!
+              </p>
+            )}
+          </div>
           <motion.button
             onClick={handleNewRound}
             whileHover={{ scale: 1.1, y: -5 }}
